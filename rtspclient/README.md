@@ -3,7 +3,7 @@ It 's a RTSP client implemented by golang
 
 ## Install
 ```bash
-go get github.com/djwackey/dorsvr/rtspclient
+go get github.com/tectiv3/dorsvr/rtspclient
 ```
 ## Examples
 ```go

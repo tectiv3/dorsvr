@@ -3,7 +3,7 @@ package livemedia
 import (
 	sys "syscall"
 
-	gs "github.com/djwackey/dorsvr/groupsock"
+	gs "github.com/tectiv3/dorsvr/groupsock"
 )
 
 const maxPayloadSize = 1450

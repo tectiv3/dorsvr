@@ -1,8 +1,8 @@
 package rtspclient
 
 import (
-	"github.com/djwackey/dorsvr/livemedia"
-	"github.com/djwackey/gitea/log"
+	"github.com/tectiv3/dorsvr/livemedia"
+	"github.com/tectiv3/gitea/log"
 )
 
 func continueAfterDESCRIBE(c *RTSPClient, resultCode int, resultStr string) {

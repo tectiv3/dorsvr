@@ -3,8 +3,8 @@ package livemedia
 import (
 	sys "syscall"
 
-	gs "github.com/djwackey/dorsvr/groupsock"
-	"github.com/djwackey/gitea/log"
+	gs "github.com/tectiv3/dorsvr/groupsock"
+	"github.com/tectiv3/gitea/log"
 )
 
 const (

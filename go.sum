@@ -1,0 +1,4 @@
+github.com/tectiv3/gitea v0.0.0-20190714115552-85e4cb84f564 h1:DBT96MxSL4uU15jqGeN0sg2IWFzUp35MzKV9xVClFXQ=
+github.com/tectiv3/gitea v0.0.0-20190714115552-85e4cb84f564/go.mod h1:11K4rx/tk1TAxpx5OiDTMWvFHBOZpzEPpXPD04UrPDs=
+golang.org/x/sync v0.0.0-20190423024810-112230192c58 h1:8gQV6CLnAEikrhgkHFbMAEhagSSnXWGV915qUMm9mrU=
+golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=

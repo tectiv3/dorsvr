@@ -12,10 +12,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/djwackey/dorsvr/auth"
-	gs "github.com/djwackey/dorsvr/groupsock"
-	"github.com/djwackey/dorsvr/livemedia"
-	lg "github.com/djwackey/gitea/log"
+	"github.com/tectiv3/dorsvr/auth"
+	gs "github.com/tectiv3/dorsvr/groupsock"
+	"github.com/tectiv3/dorsvr/livemedia"
+	lg "github.com/tectiv3/gitea/log"
 )
 
 type RTSPServer struct {

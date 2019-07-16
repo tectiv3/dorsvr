@@ -82,7 +82,7 @@ func newSDESItem(tag int, value string) *SDESItem {
 func dTimeNow() int64 {
 	var timeNow sys.Timeval
 	sys.Gettimeofday(&timeNow)
-	return timeNow.Sec + timeNow.Usec/1000000.0
+	return timeNow.Sec + int64(timeNow.Usec/1000000.0)
 }
 
 func (s *SDESItem) totalSize() uint {
@@ -552,7 +552,7 @@ func (r *RTCPInstance) enqueueReportBlock(stats *RTPReceptionStats) {
 	// (Note that 65536/1000000 == 1024/15625)
 	var dlsr int64
 	if lsr != 0 {
-		dlsr = (timeSinceLSR.Sec << 16) | ((((timeSinceLSR.Usec << 11) + 15625) / 31250) & 0xFFFF)
+		dlsr = (timeSinceLSR.Sec << 16) | int64((((timeSinceLSR.Usec<<11)+15625)/31250)&0xFFFF)
 	}
 	r.outBuf.enqueueWord(uint32(dlsr))
 }

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/djwackey/dorsvr/livemedia"
+	"github.com/tectiv3/dorsvr/livemedia"
 )
 
 type RTSPClientSession struct {

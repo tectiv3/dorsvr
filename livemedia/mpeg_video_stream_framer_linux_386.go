@@ -1,7 +1,7 @@
 package livemedia
 
 import (
-	//"github.com/djwackey/dorsvr/log"
+	//"github.com/tectiv3/dorsvr/log"
 	sys "syscall"
 )
 

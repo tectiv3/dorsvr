@@ -156,8 +156,8 @@ func (s *MultiFramedRTPSink) afterGettingFrame(frameSize, durationInMicroseconds
 		// However, if this frame has overflow data remaining, then don't
 		// count its duration yet.
 		if overflowBytes == 0 {
-			s.nextSendTime.Usec += int64(durationInMicroseconds)
-			s.nextSendTime.Sec += s.nextSendTime.Usec / 1000000
+			s.nextSendTime.Usec += int32(durationInMicroseconds)
+			s.nextSendTime.Sec += int64(s.nextSendTime.Usec / 1000000)
 			s.nextSendTime.Usec %= 1000000
 		}
 
@@ -226,7 +226,7 @@ func (s *MultiFramedRTPSink) sendPacketIfNecessary() {
 		var timeNow sys.Timeval
 		sys.Gettimeofday(&timeNow)
 		secsDiff := s.nextSendTime.Sec - timeNow.Sec
-		uSecondsToGo := secsDiff*1000000 + (s.nextSendTime.Usec - timeNow.Usec)
+		uSecondsToGo := secsDiff*1000000 + int64(s.nextSendTime.Usec-timeNow.Usec)
 		if uSecondsToGo < 0 || secsDiff < 0 { // sanity check: Make sure that the time-to-delay is non-negative:
 			uSecondsToGo = 0
 		}

@@ -68,7 +68,7 @@ func (f *MPEGVideoStreamFramer) computePresentationTime(numAdditionalPictures ui
 
 	f.presentationTime = f.presentationTimeBase
 	f.presentationTime.Sec += int64(tcSecs + pictureSeconds)
-	f.presentationTime.Usec += int64(pictureFractionOfSecond * 1000000.0)
+	f.presentationTime.Usec += int32(pictureFractionOfSecond * 1000000.0)
 	if f.presentationTime.Usec >= 1000000 {
 		f.presentationTime.Usec -= 1000000
 		f.presentationTime.Sec++

@@ -70,8 +70,8 @@ func (s *ByteStreamFileSource) doReadFromFile() error {
 			sys.Gettimeofday(&s.presentationTime)
 		} else {
 			// Increment by the play time of the previous data:
-			uSeconds := s.presentationTime.Usec + int64(s.lastPlayTime)
-			s.presentationTime.Sec += uSeconds / 1000000
+			uSeconds := s.presentationTime.Usec + int32(s.lastPlayTime)
+			s.presentationTime.Sec += int64(uSeconds / 1000000)
 			s.presentationTime.Usec = uSeconds % 1000000
 		}
 
