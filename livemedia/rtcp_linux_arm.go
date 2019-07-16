@@ -54,8 +54,8 @@ type RTCPInstance struct {
 	lastPacketSentSize   uint
 	avgRTCPSize          float64
 	haveJustSentPacket   bool
-	prevReportTime       int32
-	nextReportTime       int32
+	prevReportTime       int64
+	nextReportTime       int64
 	inBuf                []byte
 	CNAME                *SDESItem
 	Sink                 IMediaSink
@@ -79,10 +79,10 @@ func newSDESItem(tag int, value string) *SDESItem {
 	}
 }
 
-func dTimeNow() int32 {
+func dTimeNow() int64 {
 	var timeNow sys.Timeval
 	sys.Gettimeofday(&timeNow)
-	return timeNow.Sec + timeNow.Usec/1000000.0
+	return int64(timeNow.Sec + timeNow.Usec/1000000.0)
 }
 
 func (s *SDESItem) totalSize() uint {
@@ -333,6 +333,7 @@ func (r *RTCPInstance) onReceive(typeOfPacket int, totPacketSize, ssrc uint) {
 }
 
 func (r *RTCPInstance) sendReport() {
+	log.Info("sendReport")
 	// Begin by including a SR and/or RR report:
 	r.addReport()
 
@@ -360,20 +361,21 @@ func (r *RTCPInstance) sendBuiltPacket() {
 	r.lastPacketSentSize = reportSize
 }
 
-func (r *RTCPInstance) addReport() {
+func (r *RTCPInstance) addReport() bool {
 	if r.Sink != nil {
-		if r.Sink.enableRTCPReports() {
-			return
+		if !r.Sink.enableRTCPReports() {
+			return false
 		}
 
 		if r.Sink.nextTimestampHasBeenPreset() {
-			return
+			return false
 		}
 
 		r.addSR()
 	} else if r.Source != nil {
 		r.addRR()
 	}
+	return true
 }
 
 func (r *RTCPInstance) addSDES() {
@@ -383,10 +385,23 @@ func (r *RTCPInstance) addSDES() {
 
 	num4ByteWords := (numBytes + 3) / 4
 
-	var rtcpHdr uint32 = 0x81000000 // version 2, no padding, 1 SSRC chunk
+	// version 2, no padding, 1 SSRC chunk
+	var rtcpHdr uint32 = 0x81000000
 	rtcpHdr |= (RTCP_PT_SDES << 16)
 	rtcpHdr |= uint32(num4ByteWords)
 	r.outBuf.enqueueWord(rtcpHdr)
+
+	if r.Source != nil {
+		r.outBuf.enqueueWord(r.Source.ssrc)
+	} else if r.Sink != nil {
+		r.outBuf.enqueueWord(r.Sink.ssrc())
+	}
+
+	// Add the CNAME:
+	r.outBuf.enqueue(r.CNAME.data, r.CNAME.totalSize())
+
+	// Add the 'END' item (i.e., a zero byte), plus any more needed to pad:
+	_ = r.outBuf.curPacketSize() % 4
 }
 
 func (r *RTCPInstance) addBYE() {
@@ -396,25 +411,44 @@ func (r *RTCPInstance) addBYE() {
 	r.outBuf.enqueueWord(rtcpHdr)
 
 	if r.Source != nil {
-		r.outBuf.enqueueWord(uint32(r.Source.ssrc))
+		r.outBuf.enqueueWord(r.Source.ssrc)
 	} else if r.Sink != nil {
-		r.outBuf.enqueueWord(uint32(r.Sink.ssrc()))
+		r.outBuf.enqueueWord(r.Sink.ssrc())
 	}
 }
 
 func (r *RTCPInstance) addSR() {
-	r.enqueueCommonReportPrefix(RTCP_PT_SR, r.Source.ssrc, 0)
+	r.enqueueCommonReportPrefix(RTCP_PT_SR, r.Sink.ssrc(), 5)
+
+	// Now, add the 'sender info' for our sink
+
+	// Insert the NTP and RTP timestamps for the 'wallclock time':
+	var timeNow sys.Timeval
+	sys.Gettimeofday(&timeNow)
+	r.outBuf.enqueueWord(uint32(int64(timeNow.Sec) + 0x83AA7E80))
+	// NTP timestamp most-significant word (1970 epoch -> 1900 epoch)
+	fractionalPart := float32(timeNow.Usec/15625.0) * 0x04000000 // 2^32/10^6
+	r.outBuf.enqueueWord(uint32(fractionalPart + 0.5))
+	// NTP timestamp least-significant word
+	rtpTimestamp := r.Sink.convertToRTPTimestamp(timeNow)
+	r.outBuf.enqueueWord(rtpTimestamp) // RTP ts
+
+	// Insert the packet and byte counts:
+	r.outBuf.enqueueWord(uint32(r.Sink.packetCount()))
+	r.outBuf.enqueueWord(uint32(r.Sink.octetCount()))
+
 	r.enqueueCommonReportSuffix()
 }
 
 func (r *RTCPInstance) addRR() {
+	log.Info("RTCPInstance::addRR")
 	r.enqueueCommonReportPrefix(RTCP_PT_RR, r.Source.ssrc, 0)
 	r.enqueueCommonReportSuffix()
 }
 
 func (r *RTCPInstance) schedule(nextTime int64) {
-	r.nextReportTime = int32(nextTime)
-	secondsToDelay := int32(nextTime) - dTimeNow()
+	r.nextReportTime = nextTime
+	secondsToDelay := nextTime - dTimeNow()
 	if secondsToDelay < 0 {
 		secondsToDelay = 0
 	}
@@ -425,27 +459,105 @@ func (r *RTCPInstance) schedule(nextTime int64) {
 
 func (r *RTCPInstance) onExpire() {
 	// Note: totsessionbw is kbits per second
-	var rtcpBW float32 = 0.05 * float32(r.totSessionBW) * 1024 / 8
+	rtcpBW := (0.05 * float64(r.totSessionBW) * 1024 / 8)
 
 	var senders float64
 	if r.Sink != nil {
 		senders = 1
 	}
 
-	OnExpire(r, float64(r.NumMembers()), senders, senders, float64(rtcpBW), r.avgRTCPSize, float64(dTimeNow()), float64(r.prevReportTime))
+	OnExpire(r, float64(r.NumMembers()), senders, senders, rtcpBW, r.avgRTCPSize, float64(dTimeNow()), float64(r.prevReportTime))
 }
 
 func (r *RTCPInstance) unsetSpecificRRHandler() {
 }
 
 func (r *RTCPInstance) enqueueCommonReportPrefix(packetType, ssrc, numExtraWords uint32) {
+	var numReportingSources uint32
+	if r.Source == nil {
+		// we don't receive anything
+	} else {
+		numReportingSources = r.Source.receptionStatsDB.numActiveSourcesSinceLastReset
+		if numReportingSources >= 32 {
+			numReportingSources = 32
+		}
+	}
+
+	var rtcpHdr uint32 = 0x80000000 // version 2, no padding
+	rtcpHdr |= numReportingSources << 24
+	rtcpHdr |= packetType << 16
+	rtcpHdr |= (1 + numExtraWords + 6*numReportingSources)
+	r.outBuf.enqueueWord(rtcpHdr)
+
+	r.outBuf.enqueueWord(ssrc)
 }
 
 func (r *RTCPInstance) enqueueCommonReportSuffix() {
+	if r.Source != nil {
+		for _, stats := range r.Source.receptionStatsDB.table {
+			r.enqueueReportBlock(stats)
+		}
+		// because we have just generated a report
+		//r.Source.receptionStatsDB.reset()
+	}
+}
+
+func (r *RTCPInstance) enqueueReportBlock(stats *RTPReceptionStats) {
+	r.outBuf.enqueueWord(stats.ssrc)
+
+	highestExtSeqNumReceived := stats.highestExtSeqNumReceived
+
+	totNumExpected := highestExtSeqNumReceived - stats.baseExtSeqNumReceived
+	totNumLost := int(totNumExpected - stats.totNumPacketsReceived)
+	// 'Clamp' this loss number to a 24-bit signed value:
+	if totNumLost > 0x007FFFFF {
+		totNumLost = 0x007FFFFF
+	} else if totNumLost < 0 {
+		if totNumLost < -0x00800000 {
+			totNumLost = 0x00800000 // unlikely, but...
+		}
+		totNumLost &= 0x00FFFFFF
+	}
+
+	numExpectedSinceLastReset := highestExtSeqNumReceived - stats.lastResetExtSeqNumReceived
+	numLostSinceLastReset := numExpectedSinceLastReset - stats.numPacketsReceivedSinceLastReset
+	var lossFraction uint32
+	if numExpectedSinceLastReset == 0 || numLostSinceLastReset < 0 {
+		lossFraction = 0
+	} else {
+		lossFraction = (numLostSinceLastReset << 8) / numExpectedSinceLastReset
+	}
+
+	r.outBuf.enqueueWord((lossFraction << 24) | uint32(totNumLost))
+	r.outBuf.enqueueWord(highestExtSeqNumReceived)
+
+	r.outBuf.enqueueWord(uint32(stats.jitter))
+
+	ntpMsw := stats.lastReceivedSRNTPmsw
+	ntpLsw := stats.lastReceivedSRNTPlsw
+	lsr := ((ntpMsw & 0xFFFF) << 16) | (ntpLsw >> 16) // middle 32 bits
+	r.outBuf.enqueueWord(lsr)
+
+	// Figure out how long has elapsed since the last SR rcvd from this src:
+	lsrTime := stats.lastReceivedSRTime // "last SR"
+	var timeSinceLSR, timeNow sys.Timeval
+	sys.Gettimeofday(&timeNow)
+	if timeNow.Usec < lsrTime.Usec {
+		timeNow.Usec += 1000000
+		timeNow.Sec -= 1
+	}
+	timeSinceLSR.Sec = timeNow.Sec - lsrTime.Sec
+	timeSinceLSR.Usec = timeNow.Usec - lsrTime.Usec
+	// The enqueued time is in units of 1/65536 seconds.
+	// (Note that 65536/1000000 == 1024/15625)
+	var dlsr int64
+	if lsr != 0 {
+		dlsr = int64((timeSinceLSR.Sec << 16) | ((((timeSinceLSR.Usec << 11) + 15625) / 31250) & 0xFFFF))
+	}
+	r.outBuf.enqueueWord(uint32(dlsr))
 }
 
 func (r *RTCPInstance) destroy() {
-	r.netInterface.stopNetworkReading()
-
 	r.sendBye()
+	r.netInterface.stopNetworkReading()
 }

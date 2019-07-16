@@ -28,7 +28,7 @@ type H264VideoStreamParser struct {
 }
 
 func newH264VideoStreamParser(usingSource, inputSource IFramedSource,
-	clientOnInputCloseFunc interface{}, clientContinueFunc interface{}) *H264VideoStreamParser {
+	clientOnInputCloseFunc, clientContinueFunc interface{}) *H264VideoStreamParser {
 	parser := new(H264VideoStreamParser)
 	parser.log2MaxFrameNum = 5
 	parser.frameMbsOnlyFlag = true

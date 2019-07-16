@@ -152,10 +152,17 @@ func (s *RTSPServer) lookupServerMediaSession(streamName string) *livemedia.Serv
 	}
 	defer fid.Close()
 
-	if !existed {
-		sms = s.createNewSMS(streamName)
-		s.addServerMediaSession(sms)
+	if existed {
+		return sms
 	}
+
+	sms = s.createNewSMS(streamName)
+	if sms == nil {
+		log.Println("SMS create failed!")
+		return nil
+	}
+
+	s.addServerMediaSession(sms)
 
 	return sms
 }

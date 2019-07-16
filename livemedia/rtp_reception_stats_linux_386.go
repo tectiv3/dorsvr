@@ -237,7 +237,7 @@ type RTPReceptionStatsDB struct {
 	numActiveSourcesSinceLastReset uint32
 }
 
-func NewRTPReceptionStatsDB() *RTPReceptionStatsDB {
+func newRTPReceptionStatsDB() *RTPReceptionStatsDB {
 	statsDB := new(RTPReceptionStatsDB)
 	statsDB.table = make(map[uint32]*RTPReceptionStats)
 	return statsDB

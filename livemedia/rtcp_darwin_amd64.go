@@ -333,6 +333,9 @@ func (r *RTCPInstance) onReceive(typeOfPacket int, totPacketSize, ssrc uint) {
 }
 
 func (r *RTCPInstance) sendReport() {
+	if r == nil {
+		return
+	}
 	log.Info("sendReport")
 	// Begin by including a SR and/or RR report:
 	r.addReport()
@@ -345,6 +348,9 @@ func (r *RTCPInstance) sendReport() {
 }
 
 func (r *RTCPInstance) sendBye() {
+	if r == nil {
+		return
+	}
 	r.addReport()
 
 	r.addBYE()
@@ -352,6 +358,9 @@ func (r *RTCPInstance) sendBye() {
 }
 
 func (r *RTCPInstance) sendBuiltPacket() {
+	if r == nil {
+		return
+	}
 	reportSize := r.outBuf.curPacketSize()
 	r.netInterface.sendPacket(r.outBuf.packet(), reportSize)
 	r.outBuf.resetOffset()
@@ -362,6 +371,9 @@ func (r *RTCPInstance) sendBuiltPacket() {
 }
 
 func (r *RTCPInstance) addReport() bool {
+	if r == nil {
+		return false
+	}
 	if r.Sink != nil {
 		if !r.Sink.enableRTCPReports() {
 			return false
@@ -405,6 +417,9 @@ func (r *RTCPInstance) addSDES() {
 }
 
 func (r *RTCPInstance) addBYE() {
+	if r == nil {
+		return
+	}
 	var rtcpHdr uint32 = 0x81000000
 	rtcpHdr |= RTCP_PT_BYE << 16
 	rtcpHdr |= 1
@@ -558,6 +573,9 @@ func (r *RTCPInstance) enqueueReportBlock(stats *RTPReceptionStats) {
 }
 
 func (r *RTCPInstance) destroy() {
+	if r == nil {
+		return
+	}
 	r.sendBye()
 	r.netInterface.stopNetworkReading()
 }

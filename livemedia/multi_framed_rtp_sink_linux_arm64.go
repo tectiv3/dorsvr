@@ -156,7 +156,7 @@ func (s *MultiFramedRTPSink) afterGettingFrame(frameSize, durationInMicroseconds
 		// However, if this frame has overflow data remaining, then don't
 		// count its duration yet.
 		if overflowBytes == 0 {
-			s.nextSendTime.Usec += int32(durationInMicroseconds)
+			s.nextSendTime.Usec += int64(durationInMicroseconds)
 			s.nextSendTime.Sec += s.nextSendTime.Usec / 1000000
 			s.nextSendTime.Usec %= 1000000
 		}
