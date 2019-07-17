@@ -25,7 +25,7 @@ type ServerMediaSession struct {
 
 func NewServerMediaSession(description, streamName string) *ServerMediaSession {
 	session := new(ServerMediaSession)
-	session.descSDPStr = description + ", streamed by the Dor Media Server"
+	session.descSDPStr = description + ", streamed by the Go RTSP"
 	session.infoSDPStr = streamName
 	session.streamName = streamName
 	session.Subsessions = make([]IServerMediaSubsession, 1024)
